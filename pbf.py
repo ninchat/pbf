@@ -197,6 +197,12 @@ class Op(IntEnum):
         assert status in (False, True)
         return cls(cls.SkipFalse + status)
 
+    @classmethod
+    def load_const_(cls, kind: FieldKind) -> 'Op':
+        "FieldKind.Vector is not supported."
+        assert kind in (FieldKind.Scalar, FieldKind.Bytes)
+        return cls(cls.LoadConstScalar + kind)
+
     @property
     def size(self) -> int:
         "Size of the encoded instruction."
@@ -254,8 +260,8 @@ if __name__ == "__main__":
         0, 0, 1, 0, 1,     # Field at index 2.
     ])
 
-    assert Op.LoadConstScalar.size == 9
-    assert Op.LoadConstScalar.encode(255) == b"\xc0\xff\x00\x00\x00\x00\x00\x00\x00"
+    assert Op.LoadConstBytes.size == 9
+    assert Op.load_const_(FieldKind.Bytes).encode(const_bytes_ref(255, 1)) == b"\xc2\xff\x00\x00\x00\x01\x00\x00\x00"
 
     assert Op.load_field_(1, FieldKind.Bytes).size == 2
     assert Op.load_field_(1, FieldKind.Bytes).encode(42) == b"\x43\x2a"
