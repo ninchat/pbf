@@ -15,6 +15,10 @@ class FieldMod(IntEnum):
     Message = 4
     Repeated = 5
 
+    @property
+    def leaf(self) -> bool:
+        return self <= self.Float
+
 
 class FieldType(IntEnum):
     Varint = 0
@@ -230,6 +234,9 @@ def const_bytes_ref(offset: int, length: int) -> int:
 
 
 if __name__ == "__main__":
+    assert FieldMod.Float.leaf
+    assert not FieldMod.Packed.leaf
+
     assert encode_field_section([
         FieldSpec(1),
         FieldSpec(2, FieldMod.Packed, FieldType.Varint).sub(9, FieldMod.Float),
