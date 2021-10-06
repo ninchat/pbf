@@ -2,7 +2,7 @@
 
 from enum import IntEnum
 from struct import pack
-from typing import List, Optional
+from typing import List, Optional, Union
 
 BYTECODE_HEADER = b"PBF\0"
 
@@ -215,19 +215,30 @@ class Op(IntEnum):
         else:
             return 1 + 8
 
-    def encode(self, arg: Optional[int] = None) -> bytes:
+    def encode(self, arg: Union[int, float, bytes, bytearray, None] = None) -> bytes:
         if self < 64:
-            assert arg is None
-            return pack("<B", self)
-        elif self < 128:
-            assert isinstance(arg, int)
-            return pack("<BB", self, arg)
+            assert arg is None or len(arg) == 0
+            return pack("B", self)
+
+        if isinstance(arg, int):
+            if self < 128:
+                return pack("<BB", self, arg)
+            elif self < 192:
+                return pack("<BH", self, arg)
+            else:
+                return pack("<BQ", self, arg)
+
+        if isinstance(arg, float):
+            assert self >= 192
+            return pack("<Bd", self, arg)
+
+        if self < 128:
+            assert len(arg) == 1
         elif self < 192:
-            assert isinstance(arg, int)
-            return pack("<BH", self, arg)
+            assert len(arg) == 2
         else:
-            assert isinstance(arg, int)
-            return pack("<BQ", self, arg)
+            assert len(arg) == 8
+        return pack("B", self) + arg
 
 
 def const_bytes_ref(offset: int, length: int) -> int:
