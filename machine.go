@@ -30,6 +30,21 @@ func (m *Machine) Filter(message []byte) (bool, error) {
 	return ok, err
 }
 
+// GetRawValue can be used after a Filter call to retrieve values of the
+// protobuf message's fields that are referenced by the filter program.  The
+// interpretation of a value depends on the field.
+func (m *Machine) GetRawValue(index uint8) (value uint64, found bool) {
+	slot := index >> 6
+	bit := index & 63
+	if m.fieldmask[slot]&(1<<bit) == 0 {
+		return
+	}
+
+	value = m.fielddata[index]
+	found = true
+	return
+}
+
 // reset internal machine state for processing a new message.
 func (m *Machine) reset(protobuf []byte) {
 	m.status = false

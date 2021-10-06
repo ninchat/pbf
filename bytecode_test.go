@@ -240,6 +240,16 @@ func TestPBF(t *testing.T) {
 	if !ok {
 		t.Error(ok)
 	}
+
+	for i := 0; i < 256; i++ {
+		if _, found := mach.GetRawValue(uint8(i)); found != (i < 22 && i != 17) {
+			t.Error(i, found)
+		}
+	}
+
+	if v, found := mach.GetRawValue(7); !found || v != 0x8000000000000008 {
+		t.Error(v, found)
+	}
 }
 
 func BenchmarkPrepare(b *testing.B) {
