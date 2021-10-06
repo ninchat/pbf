@@ -116,7 +116,7 @@ func parseFieldSpec(dest map[int32]fieldSpec, buf []byte, index uint8, anno stri
 			// The node is already be used as an intermediary (same specs), or
 			// referenced directly as a vector (no mod).
 			if s.mod != 0 && (s.mod != mod || s.subtype != subtype) {
-				panic(errBytecodeInvalid) // return size, errBytecodeInvalid
+				return size, errBytecodeInvalid
 			}
 		}
 		s.mod = mod
