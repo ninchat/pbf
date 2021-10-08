@@ -4,8 +4,7 @@ The [pbf](https://pkg.go.dev/github.com/ninchat/pbf) Go package implements an
 interpreter for a custom bytecode format.  A bytecode program defines a filter
 for a [Protocol Buffers](https://developers.google.com/protocol-buffers)
 (protobuf) message type.  It can be successively applied to protobuf message
-data, yielding boolean results.  The filtering step is designed to be fast,
-with no memory allocations.
+data, yielding boolean results.
 
 The application doing the filtering doesn't need any prior information about
 the specific message types, as the bytecode includes all necessary details.  In
@@ -18,5 +17,33 @@ necessary.  The [field](https://pkg.go.dev/github.com/ninchat/pbf/field) and
 [pbf](pbf.py) Python module contain definitions helpful to bytecode generators,
 but comprehensive program construction tools are not provided by this project.
 
-The test code includes a [bytecode program example](bytecode_test.go).
+The test code includes a [bytecode program example](pbf_test.go).
+
+
+## Performance
+
+Filtering using PBF (BenchmarkFilter) is 33% faster than using Go code
+generated with protoc 3.6.1 and protoc-gen-go 1.27.1 (BenchmarkProtoc):
+
+```
+goos: linux
+goarch: amd64
+pkg: github.com/ninchat/pbf
+cpu: Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
+BenchmarkPrepare     2062358       2891 ns/op                       2420 B/op         18 allocs/op
+BenchmarkFilter      3656756       1629 ns/op      122.80 MB/s         0 B/op          0 allocs/op
+BenchmarkProtoc      2757368       2175 ns/op       91.97 MB/s       776 B/op         26 allocs/op
+```
+
+PBF doesn't add pressure on the garbage collector due to being virtually
+allocation-free.  It needs to allocate maps to keep track of unpacked repeated
+fields, but they are shared between iterations.
+
+BenchmarkPrepare parses and verifies the filter bytecode.  It needs to be done
+only once per program (message type).
+
+
+## Contact
+
+Developed by [Ninchat](https://ninchat.com/contact).
 

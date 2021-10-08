@@ -45,7 +45,7 @@ var bytecode = []byte{
 	// Vector field specs:
 
 	13, 0, 0, 0, 0,
-	15, 0, 0, 0, 0,
+	15, 0, 0, 0, byte(field.ModMessage), 1, 0, 0, 0, 0,
 	20, 0, 0, 0, 0,
 	21, 0, 0, 0, 0,
 
@@ -132,7 +132,7 @@ var bytecode = []byte{
 	byte(op.ReturnFalse),
 
 	byte(op.LoadR1FieldBytes), 11, // Tag 12.
-	byte(op.LoadConstBytes), 155, 0, 0, 0, 13, 0, 0, 0, // "Hello, world."
+	byte(op.LoadConstBytes), 160, 0, 0, 0, 13, 0, 0, 0, // "Hello, world!"
 	byte(op.CompareBytesEQ),
 	byte(op.SkipTrue), 1, 0,
 	byte(op.ReturnFalse),
@@ -183,9 +183,9 @@ var bytecode = []byte{
 	byte(op.SkipFalse), 1, 0,
 	byte(op.ReturnFalse),
 
-	byte(op.LoadR1FieldScalar), 17,
-	byte(op.LoadConstScalar0),
-	byte(op.CompareSignedEQ),
+	byte(op.LoadR1FieldBytes), 17,
+	byte(op.LoadConstBytes), 0, 0, 0, 0, 0, 0, 0, 0, // Empty string.
+	byte(op.CompareBytesEQ),
 	byte(op.SkipTrue), 1, 0,
 	byte(op.ReturnFalse),
 
@@ -220,6 +220,14 @@ var bytecode = []byte{
 	// End of instruction-and-constant section.
 }
 
+func getTestData() []byte {
+	buf, err := ioutil.ReadFile("internal/testdata/test.buf")
+	if err != nil {
+		panic(err)
+	}
+	return buf
+}
+
 func TestPBF(t *testing.T) {
 	prog, err := pbf.NewProgram(bytecode)
 	if err != nil {
@@ -227,11 +235,7 @@ func TestPBF(t *testing.T) {
 	}
 
 	mach := pbf.NewMachine(prog)
-
-	buf, err := ioutil.ReadFile("internal/testdata/test.buf")
-	if err != nil {
-		t.Fatal(err)
-	}
+	buf := getTestData()
 
 	ok, err := mach.Filter(buf)
 	if err != nil {
@@ -267,11 +271,10 @@ func BenchmarkFilter(b *testing.B) {
 	}
 
 	mach := pbf.NewMachine(prog)
+	buf := getTestData()
 
-	buf, err := ioutil.ReadFile("internal/testdata/test.buf")
-	if err != nil {
-		b.Fatal(err)
-	}
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		ok, err := mach.Filter(buf)
