@@ -111,7 +111,7 @@ const (
 	ContainsFixed32                     // Binary register.
 )
 
-// Opcodes with an 1-byte argument.
+// Opcodes with a 1-byte argument.
 const (
 	LoadR0FieldScalar = Code(iota + 64) // Unary register; field index. [Reg]
 	LoadR1FieldScalar                   // Unary register; field index. [Reg]
