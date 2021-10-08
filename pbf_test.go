@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-//go:generate protoc --go_out=. --go_opt=paths=source_relative internal/test/test.proto
+//go:generate protoc --go_out=internal/test --go_opt=paths=source_relative test.proto
 //go:generate go run internal/test/cmd/testdata.go
 
 var bytecode = []byte{

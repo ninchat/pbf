@@ -3,6 +3,7 @@ syntax = "proto3";
 package pbf.internal.test;
 
 option go_package = "github.com/ninchat/pbf/internal/test";
+option optimize_for = LITE_RUNTIME;
 
 message Sub {
 	int64 x = 1;

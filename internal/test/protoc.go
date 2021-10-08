@@ -96,10 +96,7 @@ func checkFields(m *Test) bool {
 		return false
 	}
 
-	if !(m.Q != nil) {
-		return false
-	}
-	if !(m.Q[2].X == 102) {
+	if !(len(m.Q) >= 3 && m.Q[2].X == 102) {
 		return false
 	}
 
@@ -115,10 +112,6 @@ func checkFields(m *Test) bool {
 	}
 
 	if !containsInt32(m.O.Z, 1) {
-		return false
-	}
-
-	if !containsFloat32(m.T, math.Pi) {
 		return false
 	}
 
