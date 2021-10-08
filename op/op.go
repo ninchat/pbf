@@ -124,16 +124,16 @@ const (
 
 // Opcodes with a 2-byte argument.
 const (
-	SkipFalse = Code(iota + 128) // Nullary; bytecode offset. [Option]
-	SkipTrue                     // Nullary; bytecode offset. [Option]
-	Skip                         // Nullary; bytecode offset.
+	SkipFalse = Code(iota + 128) // Nullary; instruction offset. [Option]
+	SkipTrue                     // Nullary; instruction offset. [Option]
+	Skip                         // Nullary; instruction offset.
 )
 
 // Opcodes with 8 bytes of argument data.
 const (
 	LoadConstScalar = Code(iota + 192) // Unary register (R0); immediate value.
 	_                                  //
-	LoadConstBytes                     // Unary register (R0); bytecode offset and length.
+	LoadConstBytes                     // Unary register (R0); bytecode address and length.
 )
 
 // Option operand.
