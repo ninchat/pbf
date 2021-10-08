@@ -45,10 +45,10 @@ func NewProgram(bytecode []byte) (*Program, error) {
 
 	p := program{
 		bytecode:   bytecode,
-		fieldspec:  fieldspec,
 		fieldcount: fieldcount,
 		insnoffset: off,
 	}
+	p.initFieldSpec(fieldspec)
 
 	if debugging {
 		debugf("prog:   Instruction offset: %d\n", p.insnoffset)
@@ -63,9 +63,37 @@ func NewProgram(bytecode []byte) (*Program, error) {
 
 type program struct {
 	bytecode   []byte
-	fieldspec  map[int32]fieldSpec
 	fieldcount uint8
 	insnoffset int
+
+	fieldspecarr *[256]fieldSpec
+	maxarrindex  uint8
+
+	fieldspecmap map[int32]fieldSpec
+}
+
+func (p *program) initFieldSpec(spec map[int32]fieldSpec) {
+	var maxtag uint8
+	for tag := range spec {
+		if tag < 0 || tag >= 256 {
+			p.fieldspecmap = spec
+			return
+		}
+		if uint8(tag) > maxtag {
+			maxtag = uint8(tag)
+		}
+	}
+
+	var arr [256]fieldSpec
+	for i := range arr {
+		arr[i].mod = 0xff // Invalid mod value.
+	}
+	for tag, s := range spec {
+		arr[uint8(tag)] = s
+	}
+
+	p.fieldspecarr = &arr
+	p.maxarrindex = maxtag
 }
 
 func (p *program) insn() []byte {

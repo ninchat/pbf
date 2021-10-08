@@ -17,19 +17,109 @@ var (
 )
 
 // decode protobuf fields.
-func (m *Machine) decode() error {
+func (m *Machine) decode() (err error) {
 	if len(m.protobuf) > math.MaxInt32 {
 		// Byte offsets and lengths could overflow the field data encoding.
 		return errProtobufTooLong
 	}
 
-	err := m.decodeMessage(m.fieldspec, 0, m.protobuf)
+	if m.fieldspecarr != nil {
+		err = m.decodeTopMessage(m.protobuf)
+	} else {
+		err = m.decodeMessage(m.fieldspecmap, 0, m.protobuf)
+	}
 
 	if debugging && err != nil {
 		debugf(" ... Error: %v\n", err)
 	}
 
-	return err
+	return
+}
+
+// decodeTopMessage where all referenced tag numbers are smaller than 256.
+func (m *Machine) decodeTopMessage(buf []byte) error {
+	if debugging {
+		debugf("decode: Message{\ndecode: ")
+	}
+
+	for off := 0; off < len(buf); {
+		tag, typ, n := protowire.ConsumeTag(buf[off:])
+		if n < 0 {
+			return protowire.ParseError(n)
+		}
+		off += n
+
+		switch typ {
+		case protowire.VarintType:
+			v, n := protowire.ConsumeVarint(buf[off:])
+			if n < 0 {
+				return protowire.ParseError(n)
+			}
+			off += n
+
+			if s, found := m.getTopMessageFieldSpec(tag); found {
+				if err := m.decodeFieldScalar(&s, v); err != nil {
+					return err
+				}
+			}
+
+		case protowire.Fixed32Type:
+			v, n := protowire.ConsumeFixed32(buf[off:])
+			if n < 0 {
+				return protowire.ParseError(n)
+			}
+			off += n
+
+			if s, found := m.getTopMessageFieldSpec(tag); found {
+				if err := m.decodeFieldScalar32(&s, v); err != nil {
+					return err
+				}
+			}
+
+		case protowire.Fixed64Type:
+			v, n := protowire.ConsumeFixed64(buf[off:])
+			if n < 0 {
+				return protowire.ParseError(n)
+			}
+			off += n
+
+			if s, found := m.getTopMessageFieldSpec(tag); found {
+				if err := m.decodeFieldScalar64(&s, v); err != nil {
+					return err
+				}
+			}
+
+		case protowire.BytesType:
+			b, taglen, err := consumeProtoBytes(buf[off:])
+			if err != nil {
+				return err
+			}
+			off += taglen
+
+			if s, found := m.getTopMessageFieldSpec(tag); found {
+				if err := m.decodeFieldBytes(&s, off, b); err != nil {
+					return err
+				}
+			}
+			off += len(b)
+
+		case protowire.StartGroupType, protowire.EndGroupType:
+			return errProtobufDeprecated
+
+		default:
+			return errProtobufInvalid
+		}
+
+		if debugging {
+			debugf("\ndecode: ")
+		}
+	}
+
+	if debugging {
+		debugf("}\n")
+	}
+
+	return nil
 }
 
 func (m *Machine) decodeMessage(spec map[int32]fieldSpec, base int, buf []byte) error {
@@ -58,8 +148,11 @@ func (m *Machine) decodeMessage(spec map[int32]fieldSpec, base int, buf []byte) 
 				return protowire.ParseError(n)
 			}
 			off += n
-			if err := m.decodeFieldScalar(spec, rep, int32(tag), v); err != nil {
-				return err
+
+			if s, found := getMessageFieldSpec(spec, rep, int32(tag)); found {
+				if err := m.decodeFieldScalar(&s, v); err != nil {
+					return err
+				}
 			}
 
 		case protowire.Fixed32Type:
@@ -68,8 +161,11 @@ func (m *Machine) decodeMessage(spec map[int32]fieldSpec, base int, buf []byte) 
 				return protowire.ParseError(n)
 			}
 			off += n
-			if err := m.decodeFieldScalar32(spec, rep, int32(tag), v); err != nil {
-				return err
+
+			if s, found := getMessageFieldSpec(spec, rep, int32(tag)); found {
+				if err := m.decodeFieldScalar32(&s, v); err != nil {
+					return err
+				}
 			}
 
 		case protowire.Fixed64Type:
@@ -78,8 +174,11 @@ func (m *Machine) decodeMessage(spec map[int32]fieldSpec, base int, buf []byte) 
 				return protowire.ParseError(n)
 			}
 			off += n
-			if err := m.decodeFieldScalar64(spec, rep, int32(tag), v); err != nil {
-				return err
+
+			if s, found := getMessageFieldSpec(spec, rep, int32(tag)); found {
+				if err := m.decodeFieldScalar64(&s, v); err != nil {
+					return err
+				}
 			}
 
 		case protowire.BytesType:
@@ -88,8 +187,11 @@ func (m *Machine) decodeMessage(spec map[int32]fieldSpec, base int, buf []byte) 
 				return err
 			}
 			off += taglen
-			if err := m.decodeFieldBytes(spec, rep, int32(tag), base+off, b); err != nil {
-				return err
+
+			if s, found := getMessageFieldSpec(spec, rep, int32(tag)); found {
+				if err := m.decodeFieldBytes(&s, base+off, b); err != nil {
+					return err
+				}
 			}
 			off += len(b)
 
@@ -129,8 +231,11 @@ func (m *Machine) decodePacked(typ uint8, spec map[int32]fieldSpec, base int, bu
 				return protowire.ParseError(n)
 			}
 			off += n
-			if err := m.decodeFieldScalar(spec, nil, i, v); err != nil {
-				return err
+
+			if s, found := getFieldSpec(spec, i); found {
+				if err := m.decodeFieldScalar(&s, v); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -141,8 +246,11 @@ func (m *Machine) decodePacked(typ uint8, spec map[int32]fieldSpec, base int, bu
 				return protowire.ParseError(n)
 			}
 			off += n
-			if err := m.decodeFieldScalar32(spec, nil, i, v); err != nil {
-				return err
+
+			if s, found := getFieldSpec(spec, i); found {
+				if err := m.decodeFieldScalar32(&s, v); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -153,8 +261,11 @@ func (m *Machine) decodePacked(typ uint8, spec map[int32]fieldSpec, base int, bu
 				return protowire.ParseError(n)
 			}
 			off += n
-			if err := m.decodeFieldScalar64(spec, nil, i, v); err != nil {
-				return err
+
+			if s, found := getFieldSpec(spec, i); found {
+				if err := m.decodeFieldScalar64(&s, v); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -165,8 +276,11 @@ func (m *Machine) decodePacked(typ uint8, spec map[int32]fieldSpec, base int, bu
 				return err
 			}
 			off += taglen
-			if err := m.decodeFieldBytes(spec, nil, i, base+off, b); err != nil {
-				return err
+
+			if s, found := getFieldSpec(spec, i); found {
+				if err := m.decodeFieldBytes(&s, base+off, b); err != nil {
+					return err
+				}
 			}
 			off += len(b)
 		}
@@ -179,14 +293,9 @@ func (m *Machine) decodePacked(typ uint8, spec map[int32]fieldSpec, base int, bu
 	return nil
 }
 
-func (m *Machine) decodeFieldBytes(spec map[int32]fieldSpec, rep map[int32]int32, num int32, off int, buf []byte) error {
-	s, found := getFieldSpec(spec, rep, num)
-	if !found {
-		return nil
-	}
-
+func (m *Machine) decodeFieldBytes(s *fieldSpec, off int, buf []byte) error {
 	if s.indexed {
-		m.setFieldBytes(&s, off, buf)
+		m.setFieldBytes(s, off, buf)
 	}
 	if s.mod.IsLeaf() {
 		return nil
@@ -198,25 +307,15 @@ func (m *Machine) decodeFieldBytes(spec map[int32]fieldSpec, rep map[int32]int32
 	return m.decodeMessage(s.sub, off, buf)
 }
 
-func (m *Machine) decodeFieldScalar(spec map[int32]fieldSpec, rep map[int32]int32, num int32, value uint64) error {
-	s, found := getFieldSpec(spec, rep, num)
-	if !found {
-		return nil
-	}
-
+func (m *Machine) decodeFieldScalar(s *fieldSpec, value uint64) error {
 	if s.mod == field.ModZigZag {
 		value = uint64(protowire.DecodeZigZag(value))
 	}
 
-	return m.setFieldScalar(&s, value)
+	return m.setFieldScalar(s, value)
 }
 
-func (m *Machine) decodeFieldScalar32(spec map[int32]fieldSpec, rep map[int32]int32, num int32, v uint32) error {
-	s, found := getFieldSpec(spec, rep, num)
-	if !found {
-		return nil
-	}
-
+func (m *Machine) decodeFieldScalar32(s *fieldSpec, v uint32) error {
 	var value uint64
 	if s.mod == field.ModFloat {
 		value = math.Float64bits(float64(math.Float32frombits(v)))
@@ -224,16 +323,11 @@ func (m *Machine) decodeFieldScalar32(spec map[int32]fieldSpec, rep map[int32]in
 		value = uint64(v)
 	}
 
-	return m.setFieldScalar(&s, value)
+	return m.setFieldScalar(s, value)
 }
 
-func (m *Machine) decodeFieldScalar64(spec map[int32]fieldSpec, rep map[int32]int32, num int32, value uint64) error {
-	s, found := getFieldSpec(spec, rep, num)
-	if !found {
-		return nil
-	}
-
-	return m.setFieldScalar(&s, value)
+func (m *Machine) decodeFieldScalar64(s *fieldSpec, value uint64) error {
+	return m.setFieldScalar(s, value)
 }
 
 func (m *Machine) setField(s *fieldSpec, data uint64) {
@@ -266,12 +360,41 @@ func (m *Machine) setFieldScalar(s *fieldSpec, value uint64) error {
 	return nil
 }
 
-func getFieldSpec(spec map[int32]fieldSpec, rep map[int32]int32, num int32) (s fieldSpec, found bool) {
+func (m *Machine) getTopMessageFieldSpec(tag protowire.Number) (s fieldSpec, found bool) {
+	if debugging {
+		debugf(" .%d", tag)
+	}
+
+	if tag > protowire.Number(m.maxarrindex) {
+		return
+	}
+
+	s = m.fieldspecarr[tag]
+	found = s.mod.IsValid()
+	if !found {
+		return
+	}
+
+	if s.mod == field.ModRepeated {
+		index := m.topfieldrep[tag]
+		m.topfieldrep[tag] = index + 1
+
+		s, found = s.sub[index]
+	}
+	return
+}
+
+func getFieldSpec(spec map[int32]fieldSpec, num int32) (s fieldSpec, found bool) {
 	if debugging {
 		debugf(" .%d", num)
 	}
 
 	s, found = spec[num]
+	return
+}
+
+func getMessageFieldSpec(spec map[int32]fieldSpec, rep map[int32]int32, num int32) (s fieldSpec, found bool) {
+	s, found = getFieldSpec(spec, num)
 	if !found {
 		return
 	}
@@ -279,6 +402,7 @@ func getFieldSpec(spec map[int32]fieldSpec, rep map[int32]int32, num int32) (s f
 	if s.mod == field.ModRepeated {
 		index := rep[num]
 		rep[num] = index + 1
+
 		s, found = s.sub[index]
 	}
 	return

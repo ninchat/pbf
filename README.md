@@ -22,20 +22,22 @@ The test code includes a [bytecode program example](pbf_test.go).
 
 ## Performance
 
-Filtering using PBF (BenchmarkFilter) is 33% faster than using Go code
-generated with protoc 3.6.1 and protoc-gen-go 1.27.1 (BenchmarkProtocGo), and
-twice as slow as generated C++ code (BenchmarkProtocCXX):
+Filtering using PBF (BenchmarkFilter) is faster than using generated Go code
+(BenchmarkProtocGo), but slower than C++ (BenchmarkProtocCXX):
 
 ```
 goos: linux
 goarch: amd64
 pkg: github.com/ninchat/pbf
 cpu: Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz
-BenchmarkPrepare      358893          3136 ns/op                        2420 B/op         18 allocs/op
-BenchmarkFilter       671335          1751 ns/op     114.20 MB/s           0 B/op          0 allocs/op
-BenchmarkProtocGo     512204          2331 ns/op      85.81 MB/s         776 B/op         26 allocs/op
-BenchmarkProtocCXX   1221612           857.2 ns/op   233.33 MB/s
+BenchmarkPrepare     1212697          4905 ns/op                        6532 B/op         19 allocs/op
+BenchmarkFilter      4460156          1348 ns/op     148.39 MB/s           0 B/op          0 allocs/op
+BenchmarkProtocGo    2612586          2299 ns/op      86.99 MB/s         776 B/op         26 allocs/op
+BenchmarkProtocCXX   6486204           898.1 ns/op   222.70 MB/s
 ```
+
+Official protoc 3.6.1 and protoc-gen-go 1.27.1 were used for C++ and Go code
+generation.
 
 PBF doesn't add pressure on the garbage collector due to being virtually
 allocation-free.  It needs to allocate maps to keep track of unpacked repeated

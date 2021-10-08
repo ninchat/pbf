@@ -3,21 +3,26 @@ package pbf
 // Machine for program evaluation.  There can be many instances per program,
 // but each instance can be used only by a single goroutine at a time.
 type Machine struct {
-	status    bool
-	reg       [2]uint64
-	protobuf  []byte    // Encoded protobuf message.
-	fielddata []uint64  // Decoded fields.
-	fieldmask [4]uint64 // Decoded field existence.
-	fieldrep  repMapPool
+	status      bool
+	reg         [2]uint64
+	protobuf    []byte    // Encoded protobuf message.
+	fielddata   []uint64  // Decoded fields.
+	fieldmask   [4]uint64 // Decoded field existence.
+	topfieldrep *[256]int32
+	fieldrep    repMapPool
 	*program
 }
 
 // NewMachine creates a machine instance.
 func NewMachine(p *Program) *Machine {
-	return &Machine{
+	m := &Machine{
 		fielddata: make([]uint64, p.fieldcount),
 		program:   &p.program,
 	}
+	if p.fieldspecarr != nil {
+		m.topfieldrep = new([256]int32)
+	}
+	return m
 }
 
 // Filter a protobuf message, indicating whether it passes or not.  An error is
@@ -57,6 +62,11 @@ func (m *Machine) reset(protobuf []byte) {
 	}
 	for i := 0; i < len(m.fieldmask); i++ {
 		m.fieldmask[i] = 0
+	}
+	if m.topfieldrep != nil {
+		for i := uint8(0); i <= m.maxarrindex; i++ {
+			m.topfieldrep[i] = 0
+		}
 	}
 }
 
